@@ -1,0 +1,12 @@
+extends layout
+block content
+  h1 MNIST Digit Recognizer
+  div#log
+
+  p Select image to upload
+  br
+  form(method='post', action='/newImage', enctype='multipart/form-data')
+    input(type='file', name='file')
+    input(type='submit')
+  br
+
