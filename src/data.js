@@ -60,13 +60,6 @@ async function fetchOnceAndSaveToDiskWithBuffer(filename) {
   });
 }
 
-// async function fetchOnceAndSaveToDiskWithBuffer(filename) {
-//   if (fs.existsSync(filename)) {
-//            resolve(readFile(filename));
-//            return;
-//          }
-
-// }
 
 function loadHeaderValues(buffer, headerLength) {
   const headerValues = [];

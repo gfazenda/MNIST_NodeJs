@@ -6,9 +6,9 @@ var logger = require('morgan');
 var multer  = require('multer');
 var fs = require("fs");
 var jpeg = require('jpeg-js');
-
 var upload = multer({ dest: '/tmp/'});
 var app = express();
+
 const tf = require('@tensorflow/tfjs');
 require('@tensorflow/tfjs-node');
 const data = require('./src/data');
@@ -38,16 +38,15 @@ app.listen(port, function(){
 app.get('/', function(req, res){
  if(modelCreated==false){
   console.log('the model has been created and is being trained')
-  var createAndTrainModel = startup(1,128);
+  var createAndTrainModel = startup(1,256);
   createAndTrainModel.then(function(){
     modelCreated=true;
     console.log('training completed');
-    res.render('index.pug');
   });
  }else{
   res.render('index.pug');
  }
- 
+ modelCreated=true;
 });
 
 
@@ -62,12 +61,6 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
-app.post('/test', function(req, res) {
-  console.log('ooloko');
- // main.execute();
- // res.render('error');
-});
-
 const handleError = (err, res) => {
   console.log(err);
   res
@@ -77,19 +70,19 @@ const handleError = (err, res) => {
 };
 
 app.post(
-  "/newImage",
+  "/predict",
   upload.single("file"),
   (req, res) => {
     const tempPath = req.file.path;
     const targetPath = path.join(__dirname, "./public/images/image.jpg");
-    console.log(targetPath);
-    console.log(req.file.originalname);
+  //  console.log(targetPath);
+  //  console.log(req.file.originalname);
     if (path.extname(req.file.originalname).toLowerCase() === ".jpg") {
       fs.rename(tempPath, targetPath, err => {
         if (err) return handleError(err, res);
 
-        let number = doPrediction(targetPath);
-        res.render('predict.pug',{ result: number });
+        let prediction = doPrediction(targetPath);
+        res.render('predict.pug',{ result: prediction });
       });
     } else {
       fs.unlink(tempPath, err => {
@@ -110,7 +103,7 @@ function readImage(path){
   return pixels
 }
 
-function convertGreyScale(image){
+function convertToGreyScale(image){
   let pixels = imageHeight*imageWidth;
   const array = new Int32Array(pixels);
   let pIndex = 0;
@@ -118,15 +111,15 @@ function convertGreyScale(image){
     array[pIndex] = image.data[index];
     pIndex++;
   }
-  console.log(array.length);
+ // console.log(array.length);
   return array;
 }
 
 function doPrediction(path){
-  var imgData = convertGreyScale(readImage(path)); 
-  let input = tf.tensor(imgData).reshape([1,28,28,1]).cast('float32').div(tf.scalar(255)); //transform to tensor4d
-  console.log(input);
-  const predict = model.predict(input).dataSync();
+  let pixelArray = convertToGreyScale(readImage(path)); 
+  let input = tf.tensor(pixelArray).reshape([1,28,28,1]).cast('float32').div(tf.scalar(255)); //create a new tensor
+                                                                                           //and transform to a tensor4d
+  let predict = model.predict(input).dataSync(); //returns the array of 10 floats
   console.log(getResult(predict));
   return getResult(predict);
 }
@@ -160,22 +153,22 @@ async function startup(epochs, batchSize, modelSavePath) {
     const numTrainBatchesPerEpoch =
         Math.ceil(numTrainExamplesPerEpoch / batchSize);
 
-    console.log('fitting')
-    console.log(numTrainExamplesPerEpoch)
-    console.log(numTrainBatchesPerEpoch)
     await model.fit(trainImages, trainLabels, {
       epochs,
       batchSize,
       validationSplit
     });
-    console.log('fitted')
-    const {images: testImages, labels: testLabels} = data.getTestData();
-    const evalOutput = model.evaluate(testImages, testLabels);
-  
-    console.log(
-        `\nEvaluation result:\n` +
-        `  Loss = ${evalOutput[0].dataSync()[0].toFixed(3)}; `+
-        `Accuracy = ${evalOutput[1].dataSync()[0].toFixed(3)}`);
+    console.log('done')
+
+    //removed evaluation of the test images
+
+    //const {images: testImages, labels: testLabels} = data.getTestData();
+    //const evalOutput = model.evaluate(testImages, testLabels);
+    
+    // console.log(
+    //     `\nEvaluation result:\n` +
+    //     `  Loss = ${evalOutput[0].dataSync()[0].toFixed(3)}; `+
+    //     `Accuracy = ${evalOutput[1].dataSync()[0].toFixed(3)}`);
 }  
 
 module.exports = app;
